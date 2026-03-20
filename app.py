@@ -116,10 +116,16 @@ def extract_keywords(text: str) -> list:
 
 # ── Template filter for case matches ───────────────────────────────────────
 @app.template_filter('get_case_matches')
-def get_case_matches_filter(report_id, limit=3):
+def get_case_matches_filter(report, limit=3):
     """Template filter to get case matches for a report"""
     from case_matcher import get_case_matches
-    return get_case_matches(report_id, limit=limit)
+    # Handle both report objects and report IDs
+    report_id = report.id if hasattr(report, 'id') else report
+    try:
+        return get_case_matches(report_id, limit=limit)
+    except Exception as e:
+        print(f"❌ Error getting case matches: {e}")
+        return []
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ROUTES

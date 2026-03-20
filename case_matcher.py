@@ -200,4 +200,4 @@ def get_all_case_matches(report_id):
 
 def case_matches_exist(report_id):
     """Check if case matches exist for a report"""
-    return db.session.query(CaseMatch.query.filter_by(report_id=report_id).exists()).scalar()
+    return CaseMatch.query.filter_by(report_id=report_id).first() is not None
