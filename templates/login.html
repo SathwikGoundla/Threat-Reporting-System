@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Login — Threat Reporting System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="auth-card card shadow-lg mt-4">
+            <div class="auth-header text-center py-4 px-4">
+                <div class="auth-icon mb-3">
+                    <i class="fas fa-shield-alt fa-3x"></i>
+                </div>
+                <h4 class="mb-1 fw-bold">Threat Reporting System</h4>
+                <p class="mb-0 opacity-75 small">Safe. Confidential. Secure.</p>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-center text-muted mb-4">
+                    Enter your mobile number to receive an OTP via SMS
+                </p>
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-phone me-1 text-primary"></i>Mobile Number
+                        </label>
+                        <input type="tel" class="form-control form-control-lg"
+                               name="phone" placeholder="+919876543210"
+                               required autofocus autocomplete="tel">
+                        <div class="form-text">Include country code: +91 for India</div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-paper-plane me-2"></i>Send OTP via SMS
+                        </button>
+                    </div>
+                </form>
+
+                <div class="alert alert-info mt-4 mb-0 py-2">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        A 6-digit OTP will be sent to your phone number via SMS.
+                        
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

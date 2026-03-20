@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Threat Reporting System{% endblock %}
+
+{% block content %}
+<h3 class="mb-4"><i class="fas fa-crown me-2 text-warning"></i>Admin Dashboard</h3>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="stat-card">
+            <i class="fas fa-exclamation-circle text-danger"></i>
+            <div class="stat-number text-danger">{{ verified_reports | length }}</div>
+            <div class="stat-label">Awaiting Resolution</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-card">
+            <i class="fas fa-check-circle text-success"></i>
+            <div class="stat-number text-success">{{ resolved_reports | length }}</div>
+            <div class="stat-label">Resolved (Recent)</div>
+        </div>
+    </div>
+</div>
+
+<h5 class="mb-3">
+    <span class="badge bg-danger me-2">{{ verified_reports | length }}</span>
+    Reports Awaiting Resolution
+</h5>
+
+{% if verified_reports %}
+<div class="table-responsive mb-5">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>#</th><th>Category</th><th>Problem</th><th>Keywords</th><th>Date</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+        {% for r in verified_reports %}
+        <tr>
+            <td class="text-muted small">#{{ r.id }}</td>
+            <td><span class="badge bg-secondary">{{ r.category | title }}</span></td>
+            <td>{{ r.problem_type }}</td>
+            <td>
+                {% for kw in r.keywords[:3] %}
+                <span class="badge bg-warning text-dark me-1">{{ kw.keyword }}</span>
+                {% endfor %}
+            </td>
+            <td><small>{{ r.created_at.strftime('%d %b %Y') }}</small></td>
+            <td>
+                <a href="{{ url_for('view_report', report_id=r.id) }}"
+                   class="btn btn-sm btn-outline-secondary me-1">View</a>
+                <button class="btn btn-sm btn-success" data-bs-toggle="modal"
+                        data-bs-target="#solve{{ r.id }}">Resolve</button>
+            </td>
+        </tr>
+
+        <!-- Solve Modal -->
+        <div class="modal fade" id="solve{{ r.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Resolve Report #{{ r.id }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('solve_report', report_id=r.id) }}">
+                        <div class="modal-body">
+                            <p><strong>Category:</strong> {{ r.category | title }}</p>
+                            <p><strong>Problem:</strong> {{ r.problem_type }}</p>
+                            <p class="text-muted border-start border-3 ps-3">{{ r.description }}</p>
+                            {% if r.manager_comments %}
+                            <div class="alert alert-info py-2">
+                                <strong>Manager Note:</strong> {{ r.manager_comments }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <label class="form-label fw-bold">Resolution / Action Taken <span class="text-danger">*</span></label>
+                                <textarea class="form-control" name="solution" rows="4"
+                                          placeholder="Describe the action taken to resolve this report..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-1"></i>Mark as Resolved
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-success mb-5">
+    <i class="fas fa-check-circle me-2"></i>No reports awaiting resolution!
+</div>
+{% endif %}
+
+<h5 class="mb-3">Recently Resolved</h5>
+{% if resolved_reports %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead><tr><th>#</th><th>Category</th><th>Problem</th><th>Resolved</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for r in resolved_reports %}
+        <tr>
+            <td class="text-muted small">#{{ r.id }}</td>
+            <td>{{ r.category | title }}</td>
+            <td>{{ r.problem_type }}</td>
+            <td><small>{{ r.updated_at.strftime('%d %b %Y') }}</small></td>
+            <td>
+                <a href="{{ url_for('view_report', report_id=r.id) }}"
+                   class="btn btn-sm btn-outline-secondary">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">No resolved reports yet.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Manager Dashboard — Threat Reporting System{% endblock %}
+
+{% block content %}
+<h3 class="mb-4"><i class="fas fa-tasks me-2 text-primary"></i>Manager Dashboard</h3>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="stat-card">
+            <i class="fas fa-hourglass-half text-warning"></i>
+            <div class="stat-number text-warning">{{ pending_reports | length }}</div>
+            <div class="stat-label">Pending Review</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-card">
+            <i class="fas fa-check-double text-info"></i>
+            <div class="stat-number text-info">{{ verified_reports | length }}</div>
+            <div class="stat-label">Forwarded to Admin</div>
+        </div>
+    </div>
+</div>
+
+<h5 class="mb-3">
+    <span class="badge bg-warning text-dark me-2">{{ pending_reports | length }}</span>
+    Pending Reports
+</h5>
+
+{% if pending_reports %}
+<div class="table-responsive mb-5">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>#</th><th>Category</th><th>Problem</th><th>Submitted</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+        {% for r in pending_reports %}
+        <tr>
+            <td class="text-muted small">#{{ r.id }}</td>
+            <td><span class="badge bg-secondary">{{ r.category | title }}</span></td>
+            <td>{{ r.problem_type }}</td>
+            <td><small>{{ r.created_at.strftime('%d %b %Y') }}</small></td>
+            <td>
+                <a href="{{ url_for('view_report', report_id=r.id) }}"
+                   class="btn btn-sm btn-outline-secondary me-1">View</a>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                        data-bs-target="#modal{{ r.id }}">Review</button>
+            </td>
+        </tr>
+
+        <!-- Review Modal -->
+        <div class="modal fade" id="modal{{ r.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Review Report #{{ r.id }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('verify_report', report_id=r.id) }}">
+                        <div class="modal-body">
+                            <p><strong>Category:</strong> {{ r.category | title }}</p>
+                            <p><strong>Problem:</strong> {{ r.problem_type }}</p>
+                            <p class="text-muted">{{ r.description }}</p>
+                            {% if r.keywords %}
+                            <div class="mb-3">
+                                {% for kw in r.keywords %}
+                                <span class="badge bg-warning text-dark me-1">{{ kw.keyword }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <label class="form-label fw-semibold">Your Comments</label>
+                                <textarea class="form-control" name="comments" rows="3"
+                                          placeholder="Add review comments..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" name="action" value="reject"
+                                    class="btn btn-danger">
+                                <i class="fas fa-times me-1"></i>Reject
+                            </button>
+                            <button type="submit" name="action" value="approve"
+                                    class="btn btn-success">
+                                <i class="fas fa-check me-1"></i>Approve &amp; Forward
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-success">
+    <i class="fas fa-check-circle me-2"></i>No pending reports — all clear!
+</div>
+{% endif %}
+
+<h5 class="mb-3">Recently Verified</h5>
+{% if verified_reports %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead><tr><th>#</th><th>Category</th><th>Problem</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+        {% for r in verified_reports %}
+        <tr>
+            <td class="text-muted small">#{{ r.id }}</td>
+            <td>{{ r.category | title }}</td>
+            <td>{{ r.problem_type }}</td>
+            <td><span class="badge bg-info text-dark">Forwarded to Admin</span></td>
+            <td><small>{{ r.created_at.strftime('%d %b %Y') }}</small></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">No verified reports yet.</div>
+{% endif %}
+{% endblock %}

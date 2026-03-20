@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Verify OTP — Threat Reporting System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="auth-card card shadow-lg mt-4">
+            <div class="auth-header text-center py-4 px-4">
+                <div class="auth-icon mb-3">
+                    <i class="fas fa-mobile-alt fa-3x"></i>
+                </div>
+                <h4 class="mb-1 fw-bold">Check Your Phone</h4>
+                <p class="mb-0 opacity-75 small">OTP sent via SMS</p>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-center text-muted mb-1">
+                    Enter the 6-digit OTP sent to
+                </p>
+                <p class="text-center fw-bold mb-4">
+                    <i class="fas fa-phone me-1 text-primary"></i>
+                    {{ masked_phone }}
+                </p>
+
+                <form method="POST" action="{{ url_for('verify_otp') }}" id="otpForm">
+                    <div class="mb-4 text-center">
+                        <input type="text" class="form-control form-control-lg text-center otp-input"
+                               name="otp" maxlength="6" inputmode="numeric"
+                               pattern="[0-9]{6}" placeholder="• • • • • •"
+                               required autofocus autocomplete="one-time-code">
+                        <div class="form-text mt-2">Auto-submits when 6 digits entered</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check-circle me-2"></i>Verify OTP
+                        </button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-1 small">Didn't receive the SMS?</p>
+                    <a href="{{ url_for('resend_otp') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-redo-alt me-1"></i>Resend OTP
+                    </a>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="text-center">
+                    <a href="{{ url_for('login') }}" class="text-decoration-none text-muted small">
+                        <i class="fas fa-arrow-left me-1"></i>Use a different number
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3 border-warning">
+            <div class="card-body py-2 px-3">
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1 text-warning"></i>
+                    OTP is valid for <strong>5 minutes</strong>.
+                    Never share your OTP with anyone.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const otpInput = document.querySelector('.otp-input');
+otpInput.addEventListener('input', function () {
+    this.value = this.value.replace(/[^0-9]/g, '');
+    if (this.value.length === 6) {
+        document.getElementById('otpForm').submit();
+    }
+});
+// Focus on load
+otpInput.focus();
+</script>
+{% endblock %}

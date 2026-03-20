@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }} — Threat Reporting System{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
+</div>
+
+<div class="card shadow">
+    <div class="card-header d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0 fw-bold">
+            <i class="fas fa-file-alt me-2 text-primary"></i>Report #{{ report.id }}
+        </h5>
+        <span class="badge fs-6 status-{{ report.status.replace('_','-') }}">
+            {{ report.status | replace('_', ' ') | title }}
+        </span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td class="text-muted fw-semibold" width="40%">Category</td>
+                        <td><span class="badge bg-secondary">{{ report.category | title }}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted fw-semibold">Problem Type</td>
+                        <td>{{ report.problem_type }}</td>
+                    </tr>
+                    {% if report.custom_problem %}
+                    <tr>
+                        <td class="text-muted fw-semibold">Details</td>
+                        <td>{{ report.custom_problem }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="text-muted fw-semibold">Submitted</td>
+                        <td>{{ report.created_at.strftime('%d %b %Y, %H:%M') }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                {% if report.keywords %}
+                <p class="text-muted fw-semibold mb-2">Keywords Detected</p>
+                {% for kw in report.keywords %}
+                <span class="badge bg-warning text-dark me-1 mb-1">{{ kw.keyword }}</span>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <hr>
+        <h6 class="fw-bold mb-2">Description</h6>
+        <div class="bg-light rounded p-3 text-muted">{{ report.description }}</div>
+
+        {% if report.attachments %}
+        <hr>
+        <h6 class="fw-bold mb-3">Evidence ({{ report.attachments | length }} file(s))</h6>
+        <div class="row g-3">
+            {% for att in report.attachments %}
+            <div class="col-6 col-md-3">
+                <div class="border rounded overflow-hidden text-center p-2">
+                    {% if att.file_type and 'image' in att.file_type %}
+                    <img src="{{ url_for('uploaded_file', filename=att.filename) }}"
+                         class="img-fluid rounded" style="max-height:120px;object-fit:cover;">
+                    {% else %}
+                    <i class="fas fa-file fa-3x text-secondary my-2 d-block"></i>
+                    {% endif %}
+                    <small class="text-truncate d-block text-muted">{{ att.filename }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if report.manager_comments %}
+        <hr>
+        <h6 class="fw-bold mb-2">Manager's Review</h6>
+        <div class="alert alert-info">
+            <i class="fas fa-comment me-2"></i>{{ report.manager_comments }}
+        </div>
+        {% endif %}
+
+        {% if report.solutions %}
+        <hr>
+        <h6 class="fw-bold mb-2">Resolution</h6>
+        {% for s in report.solutions %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>{{ s.solution_text }}
+            <br><small class="text-muted">Resolved: {{ s.created_at.strftime('%d %b %Y, %H:%M') }}</small>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

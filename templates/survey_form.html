@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}Report an Incident — Threat Reporting System{% endblock %}
+
+{% block extra_css %}
+<style>
+.category-card { cursor:pointer; border:2px solid transparent !important; transition:all 0.25s; }
+.category-card:hover { border-color:#667eea !important; transform:translateY(-4px); }
+.category-card.selected { border-color:#667eea !important; background:#f0f0ff; }
+.problem-card { cursor:pointer; border:2px solid #dee2e6 !important; transition:all 0.2s; }
+.problem-card:hover { border-color:#667eea !important; }
+.problem-card.selected { border-color:#667eea !important; background:#f0f0ff; }
+.step-circle { width:36px; height:36px; border-radius:50%; background:#e9ecef; color:#6c757d;
+               display:flex; align-items:center; justify-content:center; margin:0 auto 6px; font-weight:700; font-size:14px; }
+.step.active .step-circle { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
+.step.active .step-label { color:#667eea; font-weight:600; }
+.step-label { font-size:12px; color:#888; text-align:center; }
+.upload-area { border:2px dashed #dee2e6; border-radius:12px; padding:35px;
+               text-align:center; cursor:pointer; transition:0.25s; }
+.upload-area:hover, .upload-area.dragover { border-color:#667eea; background:#f5f5ff; }
+.preview-item { border:1px solid #dee2e6; border-radius:8px; padding:8px; position:relative; }
+.preview-item img { width:100%; height:80px; object-fit:cover; border-radius:5px; }
+.remove-btn { position:absolute; top:3px; right:3px; background:rgba(220,53,69,.85); color:#fff;
+              border:none; border-radius:50%; width:20px; height:20px; font-size:10px; cursor:pointer;
+              display:flex; align-items:center; justify-content:center; }
+.rec-btn { width:54px; height:54px; border-radius:50%; border:2px solid #dee2e6; background:#f8f9fa;
+           color:#6c757d; cursor:pointer; font-size:1.3rem; display:flex; align-items:center;
+           justify-content:center; transition:0.3s; }
+.rec-btn.recording { background:#dc3545; color:#fff; border-color:#dc3545; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<h3 class="mb-4"><i class="fas fa-file-medical-alt me-2 text-primary"></i>Report an Incident</h3>
+
+<!-- Step indicator -->
+<div class="d-flex justify-content-between mb-4">
+    {% for n, lbl in [(1,'Category'),(2,'Problem'),(3,'Description'),(4,'Evidence')] %}
+    <div class="step flex-fill {% if n == 1 %}active{% endif %}" data-step="{{ n }}">
+        <div class="step-circle">{{ n }}</div>
+        <div class="step-label">{{ lbl }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<form method="POST" action="{{ url_for('survey_form') }}" enctype="multipart/form-data" id="surveyForm">
+
+<!-- STEP 1: Category -->
+<div class="step-content" id="step1">
+    <h5 class="mb-3">Select Category</h5>
+    <div class="row g-3">
+        {% for cat, icon, desc in [
+            ('girls','fa-female','Issues specifically affecting girls'),
+            ('boys','fa-male','Issues specifically affecting boys'),
+            ('common','fa-users','Issues affecting everyone')
+        ] %}
+        <div class="col-md-4">
+            <div class="card category-card" data-category="{{ cat }}">
+                <div class="card-body text-center py-4">
+                    <i class="fas {{ icon }} fa-3x text-primary mb-3"></i>
+                    <h6 class="mb-1">{{ cat | title }} Related</h6>
+                    <small class="text-muted">{{ desc }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <input type="hidden" name="category" id="category" required>
+    <div class="text-end mt-4">
+        <button type="button" class="btn btn-primary next-step">
+            Next <i class="fas fa-arrow-right ms-1"></i>
+        </button>
+    </div>
+</div>
+
+<!-- STEP 2: Problem Type -->
+<div class="step-content d-none" id="step2">
+    <h5 class="mb-3">Select Problem Type</h5>
+    <div class="row g-3" id="problemGrid"></div>
+    <div class="mt-3 d-none" id="customDiv">
+        <label class="form-label">Describe your problem:</label>
+        <input type="text" class="form-control" name="custom_problem">
+    </div>
+    <input type="hidden" name="problem_type" id="problem_type" required>
+    <div class="d-flex justify-content-between mt-4">
+        <button type="button" class="btn btn-outline-secondary prev-step">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </button>
+        <button type="button" class="btn btn-primary next-step">
+            Next <i class="fas fa-arrow-right ms-1"></i>
+        </button>
+    </div>
+</div>
+
+<!-- STEP 3: Description -->
+<div class="step-content d-none" id="step3">
+    <h5 class="mb-3">Describe the Incident</h5>
+    <div class="mb-3">
+        <label class="form-label">Written Description <span class="text-danger">*</span></label>
+        <textarea class="form-control" name="description" id="description" rows="5"
+                  placeholder="Describe what happened in detail..."></textarea>
+    </div>
+    <div class="text-center my-3">
+        <span class="badge bg-light text-dark border px-3 py-2">OR record voice</span>
+    </div>
+    <div class="d-flex gap-3 justify-content-center mb-2">
+        <button type="button" class="rec-btn" id="startRec" title="Start Recording">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button type="button" class="rec-btn" id="stopRec" disabled title="Stop">
+            <i class="fas fa-stop"></i>
+        </button>
+        <button type="button" class="rec-btn" id="playRec" disabled title="Play">
+            <i class="fas fa-play"></i>
+        </button>
+    </div>
+    <p id="recStatus" class="text-center text-muted small"></p>
+    <audio id="audioPlay" class="d-none"></audio>
+    <div class="d-flex justify-content-between mt-4">
+        <button type="button" class="btn btn-outline-secondary prev-step">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </button>
+        <button type="button" class="btn btn-primary next-step">
+            Next <i class="fas fa-arrow-right ms-1"></i>
+        </button>
+    </div>
+</div>
+
+<!-- STEP 4: Evidence -->
+<div class="step-content d-none" id="step4">
+    <h5 class="mb-3">Upload Evidence <span class="text-muted fs-6 fw-normal">(optional)</span></h5>
+    <div class="upload-area" id="uploadArea">
+        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+        <h6>Drag &amp; Drop files here</h6>
+        <p class="text-muted small">or click to browse</p>
+        <input type="file" name="files" id="fileInput" multiple class="d-none"
+               accept="image/*,video/*,audio/*,.pdf,.doc,.docx">
+        <p class="text-muted small">Images · Videos · Audio · PDFs — Max 50MB each</p>
+    </div>
+    <div class="row g-2 mt-2" id="filePreview"></div>
+    <div class="d-flex justify-content-between mt-4">
+        <button type="button" class="btn btn-outline-secondary prev-step">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </button>
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-paper-plane me-2"></i>Submit Report
+        </button>
+    </div>
+</div>
+
+</form>
+
+<script>
+const problems = {
+    girls:  ['Sexual Abuse','Physical Abuse','Teasing','Harassment','Blackmailing','Stalking','Cyber Bullying','Other'],
+    boys:   ['Physical Abuse','Mental Harassment','Bullying','Blackmailing','Cyber Bullying','Other'],
+    common: ['Workplace Harassment','Discrimination','Unsafe Environment','Lack of Security','Other']
+};
+
+let selCat = '', mediaRec, audioChunks = [], recording = false;
+
+// Category select
+document.querySelectorAll('.category-card').forEach(c => {
+    c.addEventListener('click', function() {
+        document.querySelectorAll('.category-card').forEach(x => x.classList.remove('selected'));
+        this.classList.add('selected');
+        selCat = this.dataset.category;
+        document.getElementById('category').value = selCat;
+    });
+});
+
+// Step navigation
+document.querySelectorAll('.next-step').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const cur = this.closest('.step-content');
+        const nxt = cur.nextElementSibling;
+        if (cur.id === 'step1' && !selCat) { alert('Please select a category'); return; }
+        if (cur.id === 'step2' && !document.getElementById('problem_type').value) { alert('Please select at least one problem type'); return; }
+        if (cur.id === 'step3' && !document.getElementById('description').value.trim()) { alert('Please describe the incident'); return; }
+        cur.classList.add('d-none'); nxt.classList.remove('d-none');
+        setActive(nxt.id.replace('step',''));
+        if (nxt.id === 'step2') loadProblems(selCat);
+    });
+});
+document.querySelectorAll('.prev-step').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const cur = this.closest('.step-content');
+        const prv = cur.previousElementSibling;
+        cur.classList.add('d-none'); prv.classList.remove('d-none');
+        setActive(prv.id.replace('step',''));
+    });
+});
+function setActive(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.querySelector(`.step[data-step="${n}"]`).classList.add('active');
+}
+
+function loadProblems(cat) {
+    const grid = document.getElementById('problemGrid');
+    grid.innerHTML = '';
+    (problems[cat]||[]).forEach(p => {
+        const col = document.createElement('div');
+        col.className = 'col-6 col-md-4';
+        col.innerHTML = `<div class="card problem-card" data-p="${p}">
+            <div class="card-body text-center py-3">
+                <i class="fas fa-exclamation-triangle text-warning mb-2 d-block"></i>
+                <small class="fw-semibold">${p}</small>
+            </div></div>`;
+        col.querySelector('.problem-card').addEventListener('click', function() {
+            // Toggle selection (allow multiple)
+            this.classList.toggle('selected');
+            updateProblemType();
+            document.getElementById('customDiv').classList.toggle('d-none', !Array.from(document.querySelectorAll('.problem-card.selected')).some(x => x.dataset.p === 'Other'));
+        });
+        grid.appendChild(col);
+    });
+}
+
+function updateProblemType() {
+    const selected = Array.from(document.querySelectorAll('.problem-card.selected')).map(x => x.dataset.p);
+    document.getElementById('problem_type').value = selected.join(',');
+}
+
+// File upload
+const ua = document.getElementById('uploadArea');
+const fi = document.getElementById('fileInput');
+const fp = document.getElementById('filePreview');
+ua.addEventListener('click', () => fi.click());
+ua.addEventListener('dragover', e => { e.preventDefault(); ua.classList.add('dragover'); });
+ua.addEventListener('dragleave', () => ua.classList.remove('dragover'));
+ua.addEventListener('drop', e => { e.preventDefault(); ua.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
+fi.addEventListener('change', e => addFiles(e.target.files));
+
+function addFiles(files) {
+    Array.from(files).forEach(f => {
+        if (f.size > 50*1024*1024) { alert(`${f.name} too large (max 50MB)`); return; }
+        const col = document.createElement('div'); col.className = 'col-6 col-md-3';
+        const item = document.createElement('div'); item.className = 'preview-item';
+        const rem = document.createElement('button');
+        rem.className = 'remove-btn'; rem.type = 'button'; rem.innerHTML = '✕';
+        rem.onclick = () => col.remove();
+        item.appendChild(rem);
+        if (f.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            const r = new FileReader();
+            r.onload = e => { img.src = e.target.result; };
+            r.readAsDataURL(f);
+            item.appendChild(img);
+        } else {
+            const ic = document.createElement('div'); ic.className = 'text-center py-2';
+            ic.innerHTML = '<i class="fas fa-file fa-2x text-secondary"></i>';
+            item.appendChild(ic);
+        }
+        const nm = document.createElement('small'); nm.className = 'd-block text-truncate text-muted mt-1';
+        nm.textContent = f.name; item.appendChild(nm);
+        col.appendChild(item); fp.appendChild(col);
+    });
+}
+
+// Voice recording
+const startBtn = document.getElementById('startRec');
+const stopBtn  = document.getElementById('stopRec');
+const playBtn  = document.getElementById('playRec');
+const status   = document.getElementById('recStatus');
+
+startBtn.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRec = new MediaRecorder(stream); audioChunks = [];
+        mediaRec.ondataavailable = e => audioChunks.push(e.data);
+        mediaRec.onstop = () => {
+            const blob = new Blob(audioChunks, { type:'audio/webm' });
+            document.getElementById('audioPlay').src = URL.createObjectURL(blob);
+            playBtn.disabled = false; status.textContent = '✅ Recording saved!';
+            const dt = new DataTransfer();
+            dt.items.add(new File([blob], 'voice-recording.webm', { type:'audio/webm' }));
+            fi.files = dt.files;
+        };
+        mediaRec.start(); recording = true;
+        startBtn.classList.add('recording'); stopBtn.disabled = false; startBtn.disabled = true;
+        status.textContent = '🔴 Recording...';
+    } catch { alert('Microphone access denied. Please allow it in browser settings.'); }
+});
+stopBtn.addEventListener('click', () => {
+    if (mediaRec && recording) {
+        mediaRec.stop(); mediaRec.stream.getTracks().forEach(t => t.stop());
+        recording = false; startBtn.classList.remove('recording');
+        stopBtn.disabled = true; startBtn.disabled = false;
+    }
+});
+playBtn.addEventListener('click', () => document.getElementById('audioPlay').play());
+</script>
+{% endblock %}
