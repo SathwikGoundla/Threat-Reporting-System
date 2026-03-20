@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import app
-from models import db, PastCase
+from models import db, PastCase, Report, Keyword, CaseMatch
+from case_matcher import find_similar_cases, save_case_matches
 
 def seed_past_cases():
     """Load sample police/government solved cases into the database"""
@@ -143,5 +144,79 @@ def seed_past_cases():
             db.session.rollback()
             print(f"\n❌ Error committing to database: {e}\n")
 
+
+def create_demo_reports():
+    """Create sample reports with case matching for admin dashboard demo"""
+    
+    with app.app_context():
+        from models import User
+        
+        print("\n" + "="*70)
+        print("  CREATING DEMO REPORTS WITH CASE MATCHES")
+        print("="*70 + "\n")
+        
+        # Get admin user
+        admin_user = User.query.filter_by(phone='+919949258081').first()
+        if not admin_user:
+            print("⚠️  Admin user not found. Skipping demo reports.")
+            return
+        
+        # Demo report 1: Harassment case
+        demo_data = {
+            'workplace_harassment': {
+                'category': 'workplace',
+                'problem_type': 'Sexual Harassment',
+                'description': 'Senior manager made inappropriate remarks and unwanted physical contact. This happened repeatedly over several months. I reported to HR but no action was taken.',
+                'keywords': ['harassment', 'inappropriate', 'sexual', 'manager', 'contact', 'HR', 'workplace'],
+                'count': 1
+            },
+            'ragging': {
+                'category': 'educational',
+                'problem_type': 'Ragging and Bullying',
+                'description': 'Senior students bullied me physically and verbally during freshman year. They made me do humiliating tasks and threatened me. The college administration ignored my complaints.',
+                'keywords': ['ragging', 'bullying', 'assault', 'seniors', 'college', 'seniors', 'threats'],
+                'count': 1
+            }
+        }
+        
+        created = 0
+        for case_type, data in demo_data.items():
+            try:
+                report = Report(
+                    user_id=admin_user.id,
+                    category=data['category'],
+                    problem_type=data['problem_type'],
+                    description=data['description'],
+                    status='verified_by_manager'  # Ready for admin review
+                )
+                db.session.add(report)
+                db.session.flush()
+                
+                # Add keywords
+                for kw in data['keywords']:
+                    db.session.add(Keyword(report_id=report.id, keyword=kw))
+                db.session.commit()
+                
+                # Find and save matching cases
+                report = Report.query.get(report.id)  # Refresh
+                similar_cases = find_similar_cases(report, top_n=5, min_similarity=0.2)
+                if similar_cases:
+                    save_case_matches(report.id, similar_cases)
+                    print(f"✓ Report #{report.id}: {data['problem_type']}")
+                    print(f"  Matched with {len(similar_cases)} similar police cases")
+                    created += 1
+            except Exception as e:
+                print(f"✗ Error creating {case_type}: {e}")
+                db.session.rollback()
+        
+        print(f"\n✅ Created {created} demo reports with case matches\n")
+        print("📍 Admins can now see these reports in: Admin Dashboard → Awaiting Resolution\n")
+
+
 if __name__ == '__main__':
     seed_past_cases()
+    
+    # Ask if user wants to create demo reports
+    response = input("Do you want to create demo reports with case matches? (yes/no): ").strip().lower()
+    if response == 'yes':
+        create_demo_reports()
