@@ -47,8 +47,22 @@ app.config['PERMANENT_SESSION_LIFETIME']  = timedelta(days=1)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ── Extensions ────────────────────────────────────────────────────────────────
-from models import db, User, OTP, Report, Attachment, Keyword, Solution
+from models import db, User, OTP, Report, Attachment, Keyword, Solution, PastCase, CaseMatch, EmailLog
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 db.init_app(app)
+
+# Initialize email service
+from email_service import init_mail, send_case_resolved_email
+mail = init_mail(app)
+
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=os.environ.get('RATELIMIT_STORAGE_URL', 'memory://')
+)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -99,6 +113,13 @@ def extract_keywords(text: str) -> list:
         if t in threat_keywords and t not in found:
             found.append(t)
     return found[:10]
+
+# ── Template filter for case matches ───────────────────────────────────────
+@app.template_filter('get_case_matches')
+def get_case_matches_filter(report_id, limit=3):
+    """Template filter to get case matches for a report"""
+    from case_matcher import get_case_matches
+    return get_case_matches(report_id, limit=limit)
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ROUTES
@@ -283,6 +304,11 @@ def user_dashboard():
 @role_required('user')
 def survey_form():
     if request.method == 'POST':
+        # Collect email address
+        user_email = request.form.get('email', '').strip()
+        if user_email:
+            current_user.email = user_email
+        
         report = Report(
             user_id=current_user.id,
             category=request.form.get('category'),
@@ -308,6 +334,17 @@ def survey_form():
                     ))
 
         db.session.commit()
+        
+        # AI Case Matching - Find and store similar past cases
+        from case_matcher import find_similar_cases, save_case_matches
+        try:
+            similar_cases = find_similar_cases(report, top_n=5, min_similarity=0.2)
+            if similar_cases:
+                save_case_matches(report.id, similar_cases)
+                print(f"✅ Found {len(similar_cases)} similar cases for report #{report.id}")
+        except Exception as e:
+            print(f"⚠️ Case matching error: {e}")
+        
         flash('✅ Report submitted successfully!', 'success')
         return redirect(url_for('user_dashboard'))
 
@@ -362,15 +399,47 @@ def admin_dashboard():
 @role_required('admin')
 def solve_report(report_id):
     report = Report.query.get_or_404(report_id)
+    solution_text = request.form.get('solution', '')
+    
     db.session.add(Solution(
         report_id=report.id,
         admin_id=current_user.id,
-        solution_text=request.form.get('solution')
+        solution_text=solution_text
     ))
     report.status   = 'resolved'
     report.admin_id = current_user.id
     db.session.commit()
-    flash('✅ Solution provided. Report marked as resolved.', 'success')
+    
+    # Send email notification to user
+    if report.user and report.user.email:
+        try:
+            result = send_case_resolved_email(
+                user_email=report.user.email,
+                report_id=report.id,
+                solution_text=solution_text,
+                problem_type=report.problem_type,
+                report_description=report.description[:200]
+            )
+            
+            if result['success']:
+                db.session.add(EmailLog(
+                    user_id=report.user_id,
+                    report_id=report.id,
+                    email_type='case_resolved',
+                    recipient=report.user.email,
+                    subject=f"Case #{report.id} Resolved",
+                    status='sent'
+                ))
+                db.session.commit()
+                flash('✅ Solution provided and email sent to user.', 'success')
+            else:
+                flash(f'⚠️ Solution saved but email failed: {result["error"]}', 'warning')
+        except Exception as e:
+            print(f"❌ Error in email sending: {e}")
+            flash('⚠️ Solution saved but email could not be sent.', 'warning')
+    else:
+        flash('✅ Solution provided. (No email - user has no email address)', 'info')
+    
     return redirect(url_for('admin_dashboard'))
 
 

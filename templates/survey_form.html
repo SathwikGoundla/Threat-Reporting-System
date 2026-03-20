@@ -95,6 +95,19 @@
 <!-- STEP 3: Description -->
 <div class="step-content d-none" id="step3">
     <h5 class="mb-3">Describe the Incident</h5>
+    
+    <div class="mb-3">
+        <label for="email" class="form-label">
+            Your Email Address <small class="text-muted">(for case updates)</small>
+        </label>
+        <input type="email" class="form-control" id="email" name="email" 
+               placeholder="your-email@example.com"
+               value="{{ current_user.email if current_user.email else '' }}">
+        <small class="form-text text-muted">
+            We'll send you notifications when your case is resolved.
+        </small>
+    </div>
+    
     <div class="mb-3">
         <label class="form-label">Written Description <span class="text-danger">*</span></label>
         <textarea class="form-control" name="description" id="description" rows="5"

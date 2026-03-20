@@ -70,6 +70,38 @@
                                 <strong>Manager Note:</strong> {{ r.manager_comments }}
                             </div>
                             {% endif %}
+                            
+                            <!-- Similar Police/Government Cases -->
+                            {% set matched = r | get_case_matches %}
+                            {% if matched %}
+                            <div class="mt-3 mb-3">
+                                <h6 class="text-info mb-2">
+                                    <i class="fas fa-briefcase me-1"></i>Similar Police/Government Cases:
+                                </h6>
+                                <div style="max-height: 250px; overflow-y: auto; background: #f8f9fa; padding: 12px; border-radius: 5px; border-left: 4px solid #17a2b8;">
+                                    {% for past_case, similarity in matched %}
+                                    <div class="mb-3 pb-3" style="border-bottom: 1px solid #dee2e6;">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <strong style="font-size: 0.95em; color: #333;">{{ past_case.case_title }}</strong>
+                                            <span class="badge bg-info">{{ (similarity * 100)|int }}% match</span>
+                                        </div>
+                                        <p class="mb-1 mt-2 small text-muted">
+                                            <strong>Authority:</strong> {{ past_case.authority }}
+                                        </p>
+                                        <p class="mb-1 small"><strong>Problem Type:</strong> {{ past_case.problem_type }}</p>
+                                        <p class="mb-2 small text-muted">{{ past_case.description[:150] }}...</p>
+                                        <p class="mb-0 small" style="background: white; padding: 8px; border-radius: 3px; border-left: 3px solid #28a745;">
+                                            <strong style="color: #28a745;">Solution:</strong> {{ past_case.solution[:200] }}...
+                                        </p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="fas fa-lightbulb me-1"></i>Reference these similar cases when formulating your resolution.
+                                </small>
+                            </div>
+                            {% endif %}
+                            
                             <div>
                                 <label class="form-label fw-bold">Resolution / Action Taken <span class="text-danger">*</span></label>
                                 <textarea class="form-control" name="solution" rows="4"

@@ -7,6 +7,7 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     phone      = db.Column(db.String(20), unique=True, nullable=False)
+    email      = db.Column(db.String(120), nullable=True)
     role       = db.Column(db.String(20), default='user')   # user / manager / admin
     is_active  = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -24,6 +25,7 @@ class OTP(db.Model):
     is_used    = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
+    attempts   = db.Column(db.Integer, default=0)
     user       = db.relationship('User', backref='otps')
 
 class Report(db.Model):
@@ -43,6 +45,7 @@ class Report(db.Model):
     attachments    = db.relationship('Attachment', backref='report', lazy=True, cascade='all, delete-orphan')
     keywords       = db.relationship('Keyword',    backref='report', lazy=True, cascade='all, delete-orphan')
     solutions      = db.relationship('Solution',   backref='report', lazy=True, cascade='all, delete-orphan')
+    case_matches   = db.relationship('CaseMatch',  backref='report', lazy=True, cascade='all, delete-orphan')
 
 class Attachment(db.Model):
     id          = db.Column(db.Integer, primary_key=True)
@@ -64,3 +67,43 @@ class Solution(db.Model):
     admin_id      = db.Column(db.Integer, db.ForeignKey('user.id'),   nullable=False)
     solution_text = db.Column(db.Text, nullable=False)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# NEW MODELS FOR ENHANCED FEATURES
+# ═════════════════════════════════════════════════════════════════════════════
+
+class PastCase(db.Model):
+    """Store government/police solved cases for AI matching"""
+    id             = db.Column(db.Integer, primary_key=True)
+    case_title     = db.Column(db.String(300), nullable=False)
+    category       = db.Column(db.String(50),  nullable=False)  # workplace/educational
+    problem_type   = db.Column(db.String(100), nullable=False)
+    description    = db.Column(db.Text, nullable=False)
+    solution       = db.Column(db.Text, nullable=False)  # How police/govt solved it
+    authority      = db.Column(db.String(200), nullable=False)  # Police dept, court, etc.
+    case_date      = db.Column(db.DateTime, nullable=True)
+    source_url     = db.Column(db.String(500), nullable=True)
+    keywords       = db.Column(db.Text, nullable=True)  # Comma-separated keywords
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CaseMatch(db.Model):
+    """Links reports to similar past cases"""
+    id             = db.Column(db.Integer, primary_key=True)
+    report_id      = db.Column(db.Integer, db.ForeignKey('report.id'), nullable=False)
+    past_case_id   = db.Column(db.Integer, db.ForeignKey('past_case.id'), nullable=False)
+    similarity     = db.Column(db.Float, nullable=False)  # 0.0 to 1.0
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    past_case      = db.relationship('PastCase', backref='matches')
+
+class EmailLog(db.Model):
+    """Track all sent emails"""
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    report_id      = db.Column(db.Integer, db.ForeignKey('report.id'), nullable=True)
+    email_type     = db.Column(db.String(50), nullable=False)  # case_resolved, status_update, etc.
+    recipient      = db.Column(db.String(120), nullable=False)
+    subject        = db.Column(db.String(200), nullable=False)
+    sent_at        = db.Column(db.DateTime, default=datetime.utcnow)
+    status         = db.Column(db.String(20), default='sent')  # sent, failed, bounced
+    user           = db.relationship('User', backref='emails')
+    report         = db.relationship('Report', backref='email_logs')
